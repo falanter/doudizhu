@@ -43,6 +43,7 @@
     .selected {
       background: #eee;
       transform: translateY(-20px);
+
     }
 
     #moveSelected {
@@ -53,6 +54,30 @@
       top: 0;
       left: 0;
     }
+    .backcover{
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      z-index: 2;
+    }
+    .sendCard{
+      position: absolute;
+      right: 100px;
+      top: 10px;
+      padding: 5px 10px;
+      /* width: 200px;
+      height: 100px; */
+      border-radius: 10px;
+      /* border: 1px solid #fff; */
+      background: #fff;
+      cursor: pointer;
+      z-index: 3;
+      transition: all 250ms;
+    }
+    .sendCard:hover{
+      background: #ddd;
+    }
   </style>
 </head>
 
@@ -60,11 +85,13 @@
   <div id="app">
     <!-- {{ message }} -->
     <ul id="selfCardBox" @click.prevent="clickUl" @mousedown.prevent="handleMouseDown" @mousemove="handleMouseMove"
-      @mouseup.prevent="handleMouseUp" @mouseleave.prevent="handleMouseLeave">
+      @mouseup.prevent="handleMouseUp" @mouseleave.prevent="handleMouseLeave" @contextmenu="rightMouseClick">
       <li class="card" v-for="item in myCards" :class="{selected:item.selected}">
         {{item.num}}
       </li>
       <div id="moveSelected" :style="{top:liTop,left:liLeft,width:liWidth,height:liHeight}"></div>
+      <div class="sendCard" @click.prevent="rightMouseClick">出牌</div>
+      <div class="backcover"></div>
     </ul>
   </div>
 
@@ -88,11 +115,12 @@
 
       const message = ref('Hello vue!')
       const myCards = ref([
-        { num: 1, selected: false, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 },
-        { num: 2, selected: true, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 },
-        { num: 6, selected: false, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 },
-        { num: 8, selected: false, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 }
+        { id:1,num: 1, selected: false, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 },
+        { id:2,num: 2, selected: true, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 },
+        { id:3,num: 6, selected: false, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 },
+        { id:4,num: 8, selected: false, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 }
       ])
+      const selectedBox=ref([])
       let flag = ref(false); //是否开启拖拽的标志
       let oldLeft = ref(0); //鼠标按下时的left,top
       let oldTop = ref(0);
@@ -108,6 +136,8 @@
 
       // 鼠标按下时开启拖拽多选，将遮罩定位并展现
       const handleMouseDown = (event) => {
+        if(event.target==document.getElementsByClassName('sendCard')[0]) return;
+        // getElementById
         flag.value = true;
         numBlankX.value = event.layerX - event.clientX
         numBlankY.value = event.layerY - event.clientY
@@ -175,8 +205,15 @@
         event.stopPropagation(); // 阻止事件冒泡
       }
 
+      // 右键或者点击出牌
+      const rightMouseClick=(event)=>{
+        event.preventDefault();
+        console.log('rightClick')
+        console.log(myCards.value,selectedBox.value)
+      }
+
       const findSelected = () => {
-        console.log('findselected', myCards.value, myCards.value.length)
+        // console.log('findselected', myCards.value, myCards.value.length)
         // myCards
         // let ulLeft=$('#selfCardBox').offset().left
         let ulTop=$('#selfCardBox').offset().top
@@ -209,52 +246,22 @@
 
 
         }
+        selectedBox.value=[]
         for (let i = 0; i < myCards.value.length; i++) {
           myCards.value[i].right=myCards.value[i].left+myCards.value[i].width
           myCards.value[i].bottom=myCards.value[i].top+myCards.value[i].height
-
-          
-        }
-        // console.log(myCards.value)
-        // console.log(liLeft.value)
-        // console.log($('.card').eq(0).offset().left)
-
-        // 阔选框四个点位
-        // console.log(liLeft.value,liTop.value,liRight.value,liBottom.value,liWidth.value,liHeight.value)
-        // console.log(liLeft.value,liRight.value)
-        // console.log(myCards.value[0].left,myCards.value[0].right)
-        // liLeft.value<myCards.value[0].left
-        // myCards.value[0].left<liRight.value<myCards.value[0].right
-
-        console.log(liTop.value.split('px')[0],liBottom.value)
-        console.log(myCards.value[0].top,myCards.value[0].bottom)
-        // liTop.value<myCards.value[0].top
-        // myCards.value[0].top<liBottom.value<myCards.value[0].bottom
-
-
-        // console.log($('.card').eq(0).offset().left,$('.card').eq(0).offset().top-$('#selfCardBox').offset().top)
-        return
-        let blockList = $('#selfCardBox').find('li');
-        for (let i = 0; i < blockList.length; i++) {
-          //计算每个块的定位信息
-          let left = $(blockList[i]).offset().left;
-          let right = $(blockList[i]).width() + left;
-          let top = $(blockList[i]).offset().top;
-          let bottom = $(blockList[i]).height() + top;
-
-          let leftTwo = moveSelected.style.left.split('px')[0]
-          let rightTwo = moveSelected.style.right.split('px')[0]
-          let topTwo = moveSelected.style.top.split('px')[0]
-          let bottomTwo = moveSelected.style.bottom.split('px')[0]
-
-          // 判断碰撞
-          if (!(top > bottomTwo || right < leftTwo || bottom < topTwo || left > rightTwo)) {
-            // 碰撞的情况
-            selectedList.push(blockList[i]);
-            $(blockList[i]).addClass('selected');
+          if(!(liRight.value.split('px')[0]<myCards.value[i].left || liTop.value.split('px')[0]>myCards.value[i].bottom || liBottom.value.split('px')[0]<myCards.value[i].top || liLeft.value.split('px')[0]>myCards.value[i].right)){
+            // 相交
+            myCards.value[i].selected=!myCards.value[i].selected
+          }
+          if(myCards.value[i].selected){
+            selectedBox.value.push(myCards.value[i])
           }
         }
-        console.log(selectedList);
+
+        // console.log(myCards.value,selectedBox.value)
+        // selectedList.push(blockList[i]);
+    
       }
 
       const clearDragData = () => {
@@ -269,6 +276,7 @@
       return {
         message,
         myCards,
+        selectedBox,
         flag,
         liLeft,
         liRight,
@@ -286,7 +294,8 @@
         handleMouseUp,
         handleMouseLeave,
         clearDragData,
-        findSelected
+        findSelected,
+        rightMouseClick
       }
     }
   }).mount('#app')

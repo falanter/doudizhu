@@ -1,0 +1,14 @@
+使用GitHub的443端口
+22端口可能被防火墙屏蔽了，可以尝试连接GitHub的443端口。
+
+$ vim ~/.ssh/config
+```
+# Add section below to it
+Host github.com
+  Hostname ssh.github.com
+  Port 443
+```
+$ ssh -T git@github.com
+
+解决：git SSL certificate problem: unable to get local issuer certificate
+git config --global http.sslVerify false
