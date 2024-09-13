@@ -1,0 +1,295 @@
+<html>
+
+<head>
+  <style>
+    *,
+    body {
+      user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    ul,
+    li {
+      list-style: none;
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #selfCardBox {
+      position: absolute;
+      bottom: 20px;
+      border: 1px solid #000;
+      height: 200px;
+      width: 99%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      background: #ccc;
+    }
+
+    .card {
+      height: 150px;
+      width: 100px;
+      border: 1px solid #000;
+      border-radius: 5px;
+      transition: all 250ms;
+    }
+
+    .selected {
+      background: #eee;
+      transform: translateY(-20px);
+    }
+
+    #moveSelected {
+      position: absolute;
+      background-color: blue;
+      opacity: 0.3;
+      border: 1px dashed #d9d9d9;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <!-- {{ message }} -->
+    <ul id="selfCardBox" @click.prevent="clickUl" @mousedown.prevent="handleMouseDown" @mousemove="handleMouseMove"
+      @mouseup.prevent="handleMouseUp" @mouseleave.prevent="handleMouseLeave">
+      <li class="card" v-for="item in myCards" :class="{selected:item.selected}">
+        {{item.num}}
+      </li>
+      <div id="moveSelected" :style="{top:liTop,left:liLeft,width:liWidth,height:liHeight}"></div>
+    </ul>
+  </div>
+
+</body>
+
+
+<script src="./vue.global.js"></script>
+<script src="./jquery-1.9.1.min.js"></script>
+<script>
+  const { createApp, ref } = Vue
+
+  createApp({
+    setup() {
+      let liTop = ref(0)
+      let liLeft = ref(0)
+      let liBottom = ref(0)
+      let liRight = ref(0)
+      let liWidth = ref(0)
+      let liHeight = ref(0)
+
+
+      const message = ref('Hello vue!')
+      const myCards = ref([
+        { num: 1, selected: false, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 },
+        { num: 2, selected: true, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 },
+        { num: 6, selected: false, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 },
+        { num: 8, selected: false, left: 0, top: 0,right:0,bottom:0, width: 0, height: 0 }
+      ])
+      let flag = ref(false); //是否开启拖拽的标志
+      let oldLeft = ref(0); //鼠标按下时的left,top
+      let oldTop = ref(0);
+      let selectedList = []; //拖拽多选选中的块集合
+      let numBlankX = ref(0);
+      let numBlankY = ref(0);
+
+      // console.log(moveSelected);
+
+      const clickUl = () => {
+        // console.log('ulClick',liTop.value)
+      }
+
+      // 鼠标按下时开启拖拽多选，将遮罩定位并展现
+      const handleMouseDown = (event) => {
+        flag.value = true;
+        numBlankX.value = event.layerX - event.clientX
+        numBlankY.value = event.layerY - event.clientY
+
+        liLeft.value = event.layerX + 'px';
+        liTop.value = event.layerY + 'px';
+
+        oldLeft.value = event.layerX;
+        oldTop.value = event.layerY;
+
+        event.preventDefault(); // 阻止默认行为
+        event.stopPropagation(); // 阻止事件冒泡
+      }
+
+      // 鼠标移动时计算遮罩的位置，宽 高
+      const handleMouseMove = (event) => {
+        if (!flag.value) return; //只有开启了拖拽，才进行mouseover操作
+        let x = event.clientX + numBlankX.value
+        let oldX = oldLeft.value
+        if (x < oldX) {
+          //向左拖
+          liLeft.value = x + 'px';
+          liWidth.value = (oldX - x) + 'px';
+        } else {
+          // 向右拖
+          liLeft.value = oldX + 'px';
+          liWidth.value = (x - oldX) + 'px';
+        }
+        let y = event.clientY + numBlankY.value
+        let oldY = oldTop.value
+        if (y < oldY) {
+          // 向上
+          liTop.value = y + 'px';
+          liHeight.value = (oldY - y) + 'px';
+        } else {
+          // 向下
+          // liTop.value = y + 'px';
+          liHeight.value = (y - oldY) + 'px';
+        }
+        event.preventDefault(); // 阻止默认行为
+        event.stopPropagation(); // 阻止事件冒泡
+      }
+
+
+      //鼠标抬起时计算遮罩的right 和 bottom，找出遮罩覆盖的块，关闭拖拽选中开关，清除遮罩数据
+      const handleMouseUp = (event) => { 
+        liBottom.value = Number(liTop.value?liTop.value.split('px')[0]:0) + Number(liHeight.value?liHeight.value.split('px')[0]:0) + 'px';
+        liRight.value = Number(liLeft.value?liLeft.value.split('px')[0]:0) + Number(liWidth.value?liWidth.value.split('px')[0]:0) + 'px';
+        
+        findSelected();
+        flag.value = false;
+        clearDragData();
+        event.preventDefault(); // 阻止默认行为
+        event.stopPropagation(); // 阻止事件冒泡
+
+      }
+
+      const handleMouseLeave = (event) => {
+        flag.value = false;
+        liWidth.value = 0;
+        liHeight.value = 0;
+        liTop.value = 0;
+        liLeft.value = 0;
+        event.preventDefault(); // 阻止默认行为
+        event.stopPropagation(); // 阻止事件冒泡
+      }
+
+      const findSelected = () => {
+        console.log('findselected', myCards.value, myCards.value.length)
+        // myCards
+        // let ulLeft=$('#selfCardBox').offset().left
+        let ulTop=$('#selfCardBox').offset().top
+        for (let i = 0; i < myCards.value.length; i++) {
+          myCards.value[i].height=152
+          if (i == 0) {
+            // console.log(i, $('.card').eq(i), 0)
+            myCards.value[i].left=$('.card').eq(i).offset().left
+            myCards.value[i].top=$('.card').eq(i).offset().top-ulTop
+
+          } else if (i == (myCards.value.length - 1)) {
+            // console.log(i, $('.card').eq(i), 'end')
+            myCards.value[i].left=$('.card').eq(i).offset().left
+            myCards.value[i-1].width=($('.card').eq(i).offset().left-$('.card').eq(i-1).offset().left)
+            myCards.value[i].width=myCards.value[i-1].width
+
+            myCards.value[i].top=$('.card').eq(i).offset().top-ulTop
+
+
+
+
+          } else {
+            // console.log(i, $('.card').eq(i))
+            myCards.value[i].left=$('.card').eq(i).offset().left
+            myCards.value[i-1].width=($('.card').eq(i).offset().left-$('.card').eq(i-1).offset().left)
+
+            myCards.value[i].top=$('.card').eq(i).offset().top-ulTop
+
+          }
+
+
+        }
+        for (let i = 0; i < myCards.value.length; i++) {
+          myCards.value[i].right=myCards.value[i].left+myCards.value[i].width
+          myCards.value[i].bottom=myCards.value[i].top+myCards.value[i].height
+
+          
+        }
+        // console.log(myCards.value)
+        // console.log(liLeft.value)
+        // console.log($('.card').eq(0).offset().left)
+
+        // 阔选框四个点位
+        // console.log(liLeft.value,liTop.value,liRight.value,liBottom.value,liWidth.value,liHeight.value)
+        // console.log(liLeft.value,liRight.value)
+        // console.log(myCards.value[0].left,myCards.value[0].right)
+        // liLeft.value<myCards.value[0].left
+        // myCards.value[0].left<liRight.value<myCards.value[0].right
+
+        console.log(liTop.value.split('px')[0],liBottom.value)
+        console.log(myCards.value[0].top,myCards.value[0].bottom)
+        // liTop.value<myCards.value[0].top
+        // myCards.value[0].top<liBottom.value<myCards.value[0].bottom
+
+
+        // console.log($('.card').eq(0).offset().left,$('.card').eq(0).offset().top-$('#selfCardBox').offset().top)
+        return
+        let blockList = $('#selfCardBox').find('li');
+        for (let i = 0; i < blockList.length; i++) {
+          //计算每个块的定位信息
+          let left = $(blockList[i]).offset().left;
+          let right = $(blockList[i]).width() + left;
+          let top = $(blockList[i]).offset().top;
+          let bottom = $(blockList[i]).height() + top;
+
+          let leftTwo = moveSelected.style.left.split('px')[0]
+          let rightTwo = moveSelected.style.right.split('px')[0]
+          let topTwo = moveSelected.style.top.split('px')[0]
+          let bottomTwo = moveSelected.style.bottom.split('px')[0]
+
+          // 判断碰撞
+          if (!(top > bottomTwo || right < leftTwo || bottom < topTwo || left > rightTwo)) {
+            // 碰撞的情况
+            selectedList.push(blockList[i]);
+            $(blockList[i]).addClass('selected');
+          }
+        }
+        console.log(selectedList);
+      }
+
+      const clearDragData = () => {
+        liWidth.value = 0;
+        liHeight.value = 0;
+        liTop.value = 0;
+        liLeft.value = 0;
+        liBottom.value = 0;
+        liRight.value = 0;
+      }
+
+      return {
+        message,
+        myCards,
+        flag,
+        liLeft,
+        liRight,
+        liBottom,
+        liTop,
+        liWidth,
+        liHeight,
+        oldLeft,
+        oldTop,
+        numBlankX,
+        numBlankY,
+        clickUl,
+        handleMouseDown,
+        handleMouseMove,
+        handleMouseUp,
+        handleMouseLeave,
+        clearDragData,
+        findSelected
+      }
+    }
+  }).mount('#app')
+</script>
+
+</html>
